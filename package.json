@@ -8,6 +8,9 @@
     "sso": "aws sso login --sso-session=boogie",
     "typecheck": "bun --filter=* typecheck"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "@types/aws-lambda": "8.10.147",
     "@types/bun": "latest"
