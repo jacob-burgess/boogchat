@@ -2,6 +2,12 @@
   "name": "boogchat",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "dev": "sst dev",
+    "deploy:prod": "sst deploy --stage production",
+    "sso": "aws sso login --sso-session=boogie",
+    "typecheck": "bun --filter=* typecheck"
+  },
   "devDependencies": {
     "@types/aws-lambda": "8.10.147",
     "@types/bun": "latest"
