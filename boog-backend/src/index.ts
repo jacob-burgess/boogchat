@@ -18,6 +18,33 @@ export class BoogChat extends DurableObject<Env> {
 		this.sessions.set(pair[1], {});
 		return new Response(null, { status: 101, webSocket: pair[0] });
 	}
+
+	webSocketMessage(ws: WebSocket, message: string) {
+		const session = this.sessions.get(ws);
+		if (!session || !session.id) {
+			session.id = crypto.randomUUID();
+			ws.serializeAttachment({ ...ws.deserializeAttachment(), id: session.id });
+			ws.send(JSON.stringify({ ready: true, id: session.id }));
+		}
+		this.broadcast(ws, message);
+	}
+
+	broadcast(sender: WebSocket, message: string | object) {
+		const senderId = this.sessions.get(sender)?.id;
+
+		for (let [ws] of this.sessions) {
+			if (ws === sender) continue;
+
+			switch (typeof message) {
+				case 'string':
+					ws.send(JSON.stringify({ ...JSON.parse(message), id: senderId }));
+					break;
+				default:
+					ws.send(JSON.stringify({ ...message, id: senderId }));
+					break;
+			}
+		}
+	}
 }
 
 export default {
