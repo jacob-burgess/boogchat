@@ -45,6 +45,22 @@ export class BoogChat extends DurableObject<Env> {
 			}
 		}
 	}
+
+	webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean): void | Promise<void> {
+		this.close(ws);
+	}
+
+	webSocketError(ws: WebSocket, error: unknown): void | Promise<void> {
+		this.close(ws);
+	}
+
+	close(ws: WebSocket) {
+		const session = this.sessions.get(ws);
+		if (!session?.id) return;
+
+		this.broadcast(ws, { type: 'close' });
+		this.sessions.delete(ws);
+	}
 }
 
 export default {
