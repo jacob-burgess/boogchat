@@ -1,0 +1,20 @@
+{
+	"iceServers": [
+		{ "urls": "stun:stun.cloudflare.com:3478" },
+		{
+			"urls": "turn:turn.cloudflare.com:3478?transport=udp",
+			"username": "g0b84ca4feba887cd115c258b3084b8c10743e8e7526051b931b6d1389ef17ad",
+			"credential": "fe1bec109f24308b6d02fa12ee6fe189080c349683228bb95d63624a05d3fcb3"
+		},
+		{
+			"urls": "turn:turn.cloudflare.com:3478?transport=tcp",
+			"username": "g0b84ca4feba887cd115c258b3084b8c10743e8e7526051b931b6d1389ef17ad",
+			"credential": "fe1bec109f24308b6d02fa12ee6fe189080c349683228bb95d63624a05d3fcb3"
+		},
+		{
+			"urls": "turns:turn.cloudflare.com:5349?transport=tcp",
+			"username": "g0b84ca4feba887cd115c258b3084b8c10743e8e7526051b931b6d1389ef17ad",
+			"credential": "fe1bec109f24308b6d02fa12ee6fe189080c349683228bb95d63624a05d3fcb3"
+		}
+	]
+}

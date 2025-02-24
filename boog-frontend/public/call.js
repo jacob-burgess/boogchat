@@ -1,16 +1,16 @@
-const myVid = document.getElementById('my-video');
-const peerVid = document.getElementById('peer-video');
+const localVid = document.getElementById('local-video');
+const remoteVid = document.getElementById('remote-video');
 const videoBtn = document.getElementById('video-ctl');
 const endCallBtn = document.getElementById('endcall');
 const audioBtn = document.getElementById('audio-ctl');
 
 const env = {};
-
 if (location.hostname == 'localhost') {
 	env.ws = 'ws://localhost:8787';
 	env.servers = { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] };
 } else {
-	//TODO
+	env.ws = 'https://boog-backend.jacobburgess11.workers.dev';
+	env.servers = await fetch('./turn.json').then((r) => r.json());
 }
 
 let ws;
@@ -18,14 +18,11 @@ let localStream;
 let remoteStream;
 let peerConnection;
 
-const wssend = (data) => ws.send(JSON.stringify(data));
-
 async function handleMessages(e) {
 	const msg = JSON.parse(e.data);
 	console.log(msg);
-
 	switch (msg.type) {
-		case 'join':
+		case 'joined':
 			await makeCall();
 			break;
 		case 'candidate':
@@ -35,47 +32,52 @@ async function handleMessages(e) {
 			await answerCall(msg.offer);
 			break;
 		case 'answer':
-			await startCall();
+			await startCall(msg.answer);
+			break;
+		case 'left':
+			endCall();
 			break;
 		default:
-			console.log('unknown message', msg);
 			break;
 	}
 }
 
-async function acceptCandidate(candidate) {
-	try {
-		await peerConnection.addIceCandidate(candidate);
-	} catch (e) {
-		console.error('error adding candidate', e);
-	}
-}
+const wssend = (data) => ws.send(JSON.stringify(data));
 
-async function answerCall(offer) {
-	await connectToPeer();
-	await peerConnection.setRemoteDescription(offer);
-	const answer = await peerConnection.createAnswer();
-	await peerConnection.setLocalDescription(answer);
-	wssend({ type: 'answer', answer });
+(async function () {
+	const id = new URLSearchParams(location.search).get('i');
+	if (!id) return;
+	ws = new WebSocket(`${env.ws}/${id}`);
+	ws.onmessage = handleMessages;
+	ws.onopen = () => wssend({ type: 'joined' });
+	await startLocalPlayback();
+})();
+
+async function startLocalPlayback() {
+	const config = { video: { width: { min: 1280, ideal: 1920 }, height: { min: 720, ideal: 1080 } }, audio: true };
+	localStream = await navigator.mediaDevices.getUserMedia(config);
+	localVid.srcObject = localStream;
 }
 
 async function connectToPeer() {
 	peerConnection = new RTCPeerConnection(env.servers);
 	remoteStream = new MediaStream();
 
-	peerVid.srcObject = remoteStream;
-	peerVid.classList.remove('hide');
-	myVid.classList.add('video-player-secondary');
+	localVid.classList.add('video-player-secondary');
+	remoteVid.srcObject = remoteStream;
+	remoteVid.classList.remove('hide');
 
 	if (!localStream) await startLocalPlayback();
 
-	localStream.getTracks().forEach((track) => {
-		peerConnection.addTrack(track, localStream);
+	//send local video
+	localStream.getTracks().forEach((t) => {
+		peerConnection.addTrack(t, localStream);
 	});
 
+	//receive & display remote video
 	peerConnection.ontrack = (e) => {
-		e.streams[0].getTracks().forEach((track) => {
-			remoteStream.addTrack(track);
+		e.streams[0].getTracks().forEach((t) => {
+			remoteStream.addTrack(t);
 		});
 	};
 
@@ -93,25 +95,38 @@ async function makeCall() {
 	wssend({ type: 'offer', offer });
 }
 
-async function startCall() {
-	await connectToPeer();
-	await peerConnection.setRemoteDescription(msg.answer);
+async function acceptCandidate(c) {
+	try {
+		await peerConnection.addIceCandidate(c);
+	} catch (e) {
+		console.log('Error adding ice candidate', e);
+	}
 }
 
-(async function () {
-	const id = new URLSearchParams(window.location.search).get('i');
-	if (!id) {
-		return;
-	}
-	ws = new WebSocket(`${env.ws}/{id}`);
-	ws.onmessage = handleMessages;
-	ws.onopen = () => wssend({ type: 'join' });
-	await startLocalPlayback();
-})();
+async function answerCall(offer) {
+	await connectToPeer();
+	await peerConnection.setRemoteDescription(offer);
+	const answer = await peerConnection.createAnswer();
+	await peerConnection.setLocalDescription(answer);
+	wssend({ type: 'answer', answer });
+}
 
-async function startLocalPlayback() {
-	const config = { video: { width: { min: 1280, ideal: 1920, max: 2560 }, height: { min: 720, ideal: 1080, max: 1440 } }, audio: true };
+async function startCall(answer) {
+	await peerConnection.setRemoteDescription(answer);
+}
 
-	localStream = await navigator.mediaDevices.getUserMedia(config);
-	myVid.srcObject = localStream;
+function endCall() {
+	peerConnection.close();
+	remoteVid.classList.add('hide');
+	localVid.classList.remove('video-player-secondary');
+}
+
+videoBtn.addEventListener('click', () => toggleTrack('video'));
+audioBtn.addEventListener('click', () => toggleTrack('audio'));
+endCallBtn.addEventListener('click', () => (location.href = '/'));
+
+function toggleTrack(kind) {
+	const track = localStream.getTracks().find((t) => t.kind === kind);
+	track.enabled = !track.enabled;
+	document.querySelector(`#${kind}-ctl img`).src = `../images/${kind}${!track.enabled ? '_off' : ''}.svg`;
 }
