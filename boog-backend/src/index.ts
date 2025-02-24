@@ -22,6 +22,12 @@ export class BoogChat extends DurableObject<Env> {
 
 export default {
 	async fetch(request, env, _ctx): Promise<Response> {
+		// ensure the request is a websocket upgrade request
+		const upgrade = request.headers.get('Upgrade');
+		if (!upgrade || upgrade !== 'websocket') {
+			return new Response('Expected Upgrade: websocket', { status: 426 });
+		}
+
 		// match the pathname to the appropriate durable object
 		let id: DurableObjectId = env.BOOG_CHAT.idFromName(new URL(request.url).pathname);
 
